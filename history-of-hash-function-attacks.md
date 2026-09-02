@@ -1,0 +1,354 @@
+﻿# lessons from the history of attacks on secure hash functions
+
+by Zooko Wilcox, [Zcash](https://z.cash) and [LeastAuthority](https://LeastAuthority.com), 2017-02-24
+
+*This document is a work-in-progress. Please contact the author if you see errors or omissions.*
+
+## Summary
+
+Most of the secure hash functions ever designed have turned out to be
+vulnerable to collision attacks. This includes the widely-used secure
+hash functions MD5 and SHA-1.
+
+What about pre-image and second-pre-image attacks? Have practical hash
+functions historically been vulnerable to those?
+
+I summarize here the history of attacks on secure hash functions in order
+to yield an answer to that.
+
+The main result is that there is a big gap between the history of
+collision attacks and pre-image attacks. Almost *all* older secure hash
+functions have fallen to collision attacks. Almost *none* have ever
+fallen to pre-image attacks.
+
+Secondarily, almost no *new* secure hash functions (designed after
+approximately the year 2000) have so far succumbed to collision attacks,
+either.
+
+## Preliminaries
+
+The input to a secure hash function is called the *pre-image* and the
+output is called the *image*.
+
+A hash function *collision* is two different inputs (pre-images) which
+result in the same output. A hash function is *collision-resistant* if an
+adversary can't find any collision.
+
+A hash function is *pre-image resistant* if, given an output (image), an
+adversary can't find any input (pre-image) which results in that output.
+
+A hash function is *second-pre-image resistant* if, given *one*
+pre-image, an adversary can't find any *other* pre-image which results in
+the same image.
+
+## When collision attacks don't matter
+
+There are cases where collision-resistance doesn't matter at all and what
+you care about is second-pre-image resistance.
+
+For such uses it would be harmless to be able to generate collisions, but
+harmful to be able to generate pre-images or second-pre-images. For this
+purpose the relevant question is not whether hash function designs have
+historically been revealed to be vulnerable to collisions but instead
+whether they've been revealed to be vulnerable to (second-)pre-images.
+
+### hash-based digital signatures
+
+An example of this is the construction of hash-based digital
+signatures. Hash-based digital signatures are secure (resistant to
+forgery) as long as the hash function they are built on has
+second-pre-image resistance, e.g. [SPHINCS](https://sphincs.cr.yp.to/).
+
+Such a hash-based digital signature would fail if its underlying hash
+function failed at second-pre-image resistance, but this is the *only*
+way that it could be broken—any attack which was able to forge digital
+signatures against such a scheme would *have* to violate the
+second-pre-image resistance of the underlying hash function.
+
+One reason that hash-based digital signatures might be useful is that if
+an attacker has a sufficiently large quantum computer, they could forge
+digital signatures that rely on factorization or discrete log, such as
+RSA, DSA, ECDSA, or Ed25519. There is no reason to think that such a
+quantum computer would enable them to break secure hash functions,
+however.
+
+Another reason is that even if the attacker does *not* have a
+sufficiently large quantum computer, but has a mathematical breakthrough
+that allows them to exploit the asymmetric crypto technique (such as
+factoring, discrete log, code-based crypto, etc.), then they would be
+able exploit asymmetric-crypto-based digital signatures, but not
+hash-based digital signatures.
+
+What about in the other direction, though? Can't we imagine an attacker
+who can break hash-based signatures but can't break
+asymmetric-crypto-based signatures? No—there cannot be such an
+attacker. Any attacker who can break hash-based signatures can also break
+asymmetric-crypto-based signatures, because the latter rely on hash
+functions in addition to relying on their asymmetric crypto primitives.
+
+*color key: is relying on this safe?*
+
+- 🔴 **unsafe** — You can be exploited if you rely on this.
+
+- 🟢 **safe** — There is no reason to believe that relying on this will make you vulnerable to exploitation.
+
+*Figure 0: safety of digital signature algorithms*
+
+| digital signature type | today | quantum computer | asymmetric crypto breakthrough | hash collisions | hash preimages |
+|---|---|---|---|---|---|
+| preimage-resistant-hash-based ([SPHINCS](https://sphincs.cr.yp.to/)) | 🟢 safe | 🟢 safe | 🟢 safe | 🟢 safe | 🔴 unsafe |
+| all other post-quantum (McEliece, NTRUsign, LWE, Ring-LWE, Lattice-based signatures, code-based signatures, Rainbow, multivariate-quadratic, etc.) | 🟢 safe | 🟢 safe | 🔴 unsafe | 🔴 unsafe | 🔴 unsafe |
+| all others (RSA, DSA, ECDSA, Ed25519, etc.) | 🟢 safe | 🔴 unsafe | 🔴 unsafe | 🔴 unsafe | 🔴 unsafe |
+
+## When collision attacks *do* matter
+
+Be careful about this! The ability to generate collisions can be
+surprisingly harmful to many systems. This is one of those subtleties of
+cryptographic engineering which frequently trip up engineers who are not
+cryptography experts. The famous “Internet Root Cert” attack [[18]](#ref-18) is an
+example of engineers working at VeriSign incorrectly thinking that their
+system was not threatened by collisions (in the absence of
+second-pre-images).
+
+`git`, which uses SHA-1, is like VeriSign's MD5 certificates in this
+way—it is *believed* by its developers [[50]](#ref-50) that a mere collision attack
+(not second-pre-image) against SHA-1 wouldn't make git users vulnerable
+to malicious action, but no-one has written a security proof showing that
+git is safe against this attack.
+
+In contrast to VeriSign and git, the cryptographic constructions
+mentioned above come with proofs showing that the security of the
+construction is guaranteed, assuming the security of some underlying
+component. For example, the hash-based digital signature [SPHINCS](https://sphincs.cr.yp.to/) comes
+with a proof that *any possible* attack which couldn't generate
+second-pre-images against the hash function couldn't forge signatures.
+
+## Results
+
+Here are the results of my search for all state-of-the-art attacks on
+widely-studied hash functions.
+
+*The bottom line is that no widely-studied hash function has ever
+succumbed to a (second-)pre-image attack except for one.*
+
+That single exception is the second-oldest secure hash function ever
+designed, *Snefru*, which was designed in 1989 and 1990, and which turned
+out to be vulnerable to differential cryptanalysis. Differential
+cryptanalysis was discovered (by the open research community) in 1990.
+
+No other widely-studied hash function has been shown to be vulnerable to
+a practical (second-)pre-image attack. Furthermore, no other
+widely-studied hash function has been shown to be vulnerable to a
+(second-)pre-image attack that is more efficient than brute force, even
+if we were to count attacks too expensive for anyone to actually
+implement!
+
+The history of (second-)pre-image attacks is therefore quite different
+from the history of collision attacks. Most hash functions have been
+proven vulnerable to collision attacks more efficient than brute force,
+and even to collision attacks that could be implemented in practice.
+
+## History of attacks on hash functions
+
+This is a timeline of the publication of hash functions and of
+publication of weaknesses in hash functions.
+
+I omit attacks on reduced-round or otherwise weakened variants of hash
+functions (there are a lot of those). I omit attacks that have
+unrealistic requirements, like attacks that require 2¹²⁸ precomputation
+or require the messages to be 2⁵⁶ blocks long (there are a lot of those,
+too).
+
+(For why SHA-0 is marked unsafe starting in 1994 despite there being no published attack against it
+at that time, see note [[‡]](#note-ddagger).)
+
+*color key: is relying on this safe?*
+
+- 🔴 **no** — You can be exploited if you rely on this.
+
+- 🟡 **maybe** — There are known attacks but they are probably too expensive to actually implement. If the attacks have been secretly improved, or if the attacker has more efficient computational resources than we think, then maybe you can be exploited if you rely on this.
+
+- 🟠 **maybe** — There are no known attacks that are cheaper than brute force, but the hash output size is small enough that brute force might be feasible, so maybe you can be exploited if you rely on this.
+
+- 🟢 **yes** — There is no known attack cheaper than brute force, and to pay for a brute force attack is far, far beyond the bounds of possibility for the forseeable future. There is no reason to believe that relying on this will make you vulnerable to exploitation.
+
+*Figures 1 & 2: safety history of each hash function against collision and (second-)pre-image attacks. Each cell lists the color transitions from the design year onward (🟢 from design; 🟡 theoretical attack or distrust; 🟠 brute force becoming feasible; 🔴 practically broken). A cell containing only 🟢 means no transition has ever occurred. The interactive view renders this as a year-by-year timeline.*
+
+| hash | designed | bits | cpb | collisions | (second-)pre-images |
+|---|---|---|---|---|---|
+| MD2 | 1989 | 128 | 638 | 🟡 1989 [[21]](#ref-21) → 🔴 2010 [[45]](#ref-45) | 🟢 |
+| Snefru-2 | 1990 | 128 | ? | 🟡 1990 [[3]](#ref-3) → 🔴 1991 [[19]](#ref-19) | 🔴 1991 [[19]](#ref-19) |
+| MD4 | 1990 | 128 | 4.0 | 🟡 1990 [[22]](#ref-22) → 🔴 1995 [[20]](#ref-20) | 🟢 |
+| RIPEMD | 1990 | 128 | ? | 🟡 1990 [[23]](#ref-23) → 🔴 2004 [[7]](#ref-7) | 🟢 |
+| MD5 | 1992 | 128 | 5.1 | 🟡 1992 [[24]](#ref-24) → 🔴 2004 [[7]](#ref-7) | 🟢 |
+| HAVAL-256-3 | 1992 | 256 | ? | 🔴 2003 [[11]](#ref-11) | 🟢 |
+| SHA-0 | 1993 | 160 | ? | 🟡 1994 [[54]](#ref-54) → 🔴 2005 [[27]](#ref-27) | 🟢 |
+| GOST | 1994 | 256 | ? | 🟡 2008 [[14]](#ref-14) | 🟢 |
+| SHA-1 | 1995 | 160 | 18 | 🔴 2005 [[15]](#ref-15) | 🟢 |
+| RIPEMD-160 | 1996 | 160 | 17 | 🟠 2010 [[47]](#ref-47) | 🟢 |
+| Tiger | 1996 | 192 | 6.2 | 🟢 | 🟢 |
+| Panama | 1998 | 512 | 2.5 | 🟡 2002 [[34]](#ref-34) → 🔴 2007 [[35]](#ref-35) | 🟢 |
+| Whirlpool | 2000 | 512 | 50 | 🟢 | 🟢 |
+| SHA-256 | 2001 | 256 | 19 | 🟢 | 🟢 |
+| RadioGatún | 2006 | 256 | ? | 🟢 | 🟢 |
+| Skein | 2008 | 256 | 8.7 | 🟢 | 🟢 |
+| Blake | 2008 | 256 | 17 | 🟢 | 🟢 |
+| Grøstl | 2008 | 256 | 24 | 🟢 | 🟢 |
+| Keccak (SHA-3) | 2008 | 256 | 16 | 🟢 | 🟢 |
+| JH | 2008 | 256 | 20 | 🟢 | 🟢 |
+| BLAKE2 | 2012 | 256 | 5.7 | 🟢 | 🟢 |
+
+I label an attack as cheaper than brute force only if the attack comp
+times the attack mem is less than the cost of brute force search (see
+[[1]](#ref-1)).
+
+If you are aware of any other papers which fit these criteria, or if you spot
+an error in this document, please write to me: zooko@z.cash .
+
+*Figure 3: Survey of the best known attacks on secure hash functions*
+
+| hash | year | bits | cpb | coll. safe? | comp | mem | ref | preimg. safe? | comp | mem | ref |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| MD2 | 1989 | 128 | 638 | 🔴 no | 2⁶⁴ | 2⁰ | [[†]](#note-dagger) | 🟢 yes | 2⁷² | 2⁷² | [[2]](#ref-2) |
+| Snefru-2 [[3]](#ref-3) | 1990 | 128 | ? | 🔴 no | 2¹³ | 2⁰ | [[4]](#ref-4) | 🔴 no | 2²⁵ | 2⁰ | [[4]](#ref-4) |
+| MD4 | 1990 | 128 | 4.0 | 🔴 no | 2² | 2⁰ | [[6]](#ref-6) | 🟢 yes | 2⁹⁵ | 2³⁸ | [[5]](#ref-5) |
+| RIPEMD | 1990 | 128 | ? | 🔴 no | 2¹⁸ | 2⁰ | [[36]](#ref-36) | 🟢 yes |  |  |  |
+| MD5 | 1992 | 128 | 5.1 | 🔴 no | 2²⁴ | 2⁰ | [[9]](#ref-9) | 🟢 yes | 2¹²³ | 2⁴⁸ | [[8]](#ref-8) |
+| HAVAL-256-3 [[25]](#ref-25) | 1992 | 256 | ? | 🔴 no | 2²⁹ | 2⁰ | [[11]](#ref-11) | 🟢 yes | 2²²⁵ | 2⁶⁸ | [[10]](#ref-10) |
+| SHA-0 | 1993 | 160 | ? | 🔴 no | 2³⁴ | 2⁰ | [[13]](#ref-13) | 🟢 yes | 2¹⁸⁹ | 2⁸ |  |
+| GOST | 1994 | 256 | ? | 🟡 maybe | 2¹⁰⁵ | 2⁰ | [[14]](#ref-14) | 🟢 yes | 2¹⁹² | 2⁷⁰ | [[14]](#ref-14) |
+| SHA-1 | 1995 | 160 | 18 | 🔴 no | 2⁶³ | 2⁰ | [[53]](#ref-53) | 🟢 yes |  |  |  |
+| RIPEMD-160 [[30]](#ref-30) | 1996 | 160 | 17 | 🟠 maybe | 2⁸⁰ | 2⁰ | [[§]](#note-sect) | 🟢 yes |  |  |  |
+| Tiger [[31]](#ref-31) | 1996 | 192 | 6.2 | 🟢 yes |  |  |  | 🟢 yes | 2¹⁸⁹ | 2⁸ | [[16]](#ref-16) |
+| Panama [[33]](#ref-33) | 1998 | 512 | 2.5 | 🔴 no | 2⁶ | 2⁰ | [[17]](#ref-17) | 🟢 yes |  |  |  |
+| Whirlpool [[32]](#ref-32) | 2000 | 512 | 50 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| SHA-256 [[37]](#ref-37) [[52]](#ref-52) | 2001 | 256 | 19 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| RadioGatún [[38]](#ref-38) | 2006 | 256 | ? | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| Skein [[39]](#ref-39) | 2008 | 256 | 8.7 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| Blake [[40]](#ref-40) | 2008 | 256 | 17 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| Grøstl [[41]](#ref-41) | 2008 | 256 | 24 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| Keccak (SHA-3) [[42]](#ref-42) | 2008 | 256 | 16 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| JH [[43]](#ref-43) | 2008 | 256 | 20 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+| BLAKE2 [[44]](#ref-44) | 2012 | 256 | 5.7 | 🟢 yes |  |  |  | 🟢 yes |  |  |  |
+
+*Legend:*
+
+- *bits*: the number of bits of output
+- *cpb*: cycles per byte [[*]](#note-star)
+- *comp*: approximate computation required for the attack
+- *mem*: approximate memory required for the attack
+
+> <a id="note-star"></a>**Note [*]:** Cycles per byte were taken from on ebash's [amd64-pluton1mn](http://bench.cr.yp.to/results-hash.html#amd64-pluton1mn), 4096-byte blocks, median measurement, except for Tiger, which was is not measured on that machine and was instead taken from ebash's [amd64-h9ivy](http://bench.cr.yp.to/results-hash.html#amd64-h9ivy), and Panama, which is not measured on ebash. For Panama, I measured it on my laptop (an Intel(R) Core(TM) i5-3427U, which is similar to the ebash [amd64-h9ivy](http://bench.cr.yp.to/results-hash.html#amd64-h9ivy) machine) with Crypto++ v5.6.2's implementation of Panama. I also measured MD5, SHA-1, SHA-256, SHA-512, SHA-3-256, SHA-3-512, Tiger, Whirlpool, and RIPEMD-160 on my machine and confirmed that their measurements on my machine were similar to the measurements posted from [amd64-h9ivy](http://bench.cr.yp.to/results-hash.html#amd64-h9ivy).
+
+> <a id="note-dagger"></a>**Note [†]:** For MD2, I marked it as "maybe" safe in the collisions column up until 2010 and then marked is as "no". This is even though there are no known collision attacks on them better than brute force. This is because MD2's 128-bit output means the brute force attack takes only 2⁶⁴ comp and negligible memory to find a collision. To do that much comp has become feasible over the last few years. For example, in 2014 the Bitcoin mining network is doing it approximately every 10 minutes [[45]](#ref-45), [[46]](#ref-46)!
+
+> <a id="note-ddagger"></a>**Note [‡]:** SHA-0 was considered unsafe beginning in 1994, not because of any published attack on it, nor because the 2⁸⁰ work factor for the brute force collision attack was feasible, but because the NSA had asserted that something was wrong with SHA-0, without disclosing what, when they published SHA-1 [[54]](#ref-54). The open research community independently found what was presumably the flaw four years later: Chabaud and Joux's 1998 differential collision attack works against SHA-0 but not against SHA-1 [[55]](#ref-55).
+
+> <a id="note-sect"></a>**Note [§]:** RIPEMD-160's 160-bit output means it takes only 2⁸⁰ comp and negligible memory to find a collision. In my estimation this was safe until recently and is now “maybe” safe. See also [[47]](#ref-47) and Table 5.1 of [[49]](#ref-49).
+
+## Discussion
+
+The main result of this investigation is that there is a big gap between
+the historical successes of collision attacks and the almost
+non-existence successes of pre-image attacks. This is evidence that a
+cryptosystem which is invulnerable to collision-attacks (even if still
+vulnerable to pre-image attacks) is much stronger than one which is
+vulnerable to collision-attacks.
+
+Another interesting pattern that I perceive in these results is that
+*maybe* sometime between 1996 (Tiger) and 2000 (Whirlpool), humanity
+learned how to make collision-resistant hash functions, and none of the
+prominent secure hash functions designed since that era have succumbed to
+collision attacks.
+
+Or maybe this is just a 15-year-long hiatus, and in the future we'll
+discover how to perform collision attacks against the "modern" secure
+hash functions. Looking in the rearview mirror can't answer that for us.
+
+## Acknowledgments
+
+Thanks to Daira Hopwood, Andreas Hülsing, and Samuel Neves for comments on this note.
+
+## References
+
+- <a id="ref-1"></a>[1] <http://cr.yp.to/papers.html#bruteforce> Bernstein-2005
+- <a id="ref-2"></a>[2] <http://www.springerlink.com/content/qn746388035614r1/> Knudsen-2007
+- <a id="ref-3"></a>[3] <http://www.springerlink.com/content/t10683l407363633/> Merkle-1990
+- <a id="ref-4"></a>[4] <http://www.springerlink.com/content/208q118x13181g32/> Biham-2008
+- <a id="ref-5"></a>[5] <http://eprint.iacr.org/2010/583> Zhong-2010
+- <a id="ref-6"></a>[6] <http://www.springerlink.com/content/v6526284mu858v37/> Naito-2006
+- <a id="ref-7"></a>[7] <http://eprint.iacr.org/2004/199> Wang-2004 “Collisions for Hash Functions MD4, MD5, HAVAL-128 and RIPEMD”
+- <a id="ref-8"></a>[8] <http://www.springerlink.com/content/d7pm142n58853467/> Sasaki-2009
+- <a id="ref-9"></a>[9] <http://marc-stevens.nl/research/papers/MTh%20Marc%20Stevens%20-%20On%20Collisions%20for%20MD5.pdf> Stevens-2007
+- <a id="ref-10"></a>[10] <http://www.springerlink.com/content/d382324nl16251pp/> Sasaki-2008
+- <a id="ref-11"></a>[11] <http://academic.research.microsoft.com/Publication/676305/cryptanalysis-of-3pass-haval> Van-Rompay-2003
+- <a id="ref-12"></a>[12] <http://www.springerlink.com/content/0n9018738x721090/> Yu-2006
+- <a id="ref-13"></a>[13] <http://www.springerlink.com/content/3810jp9730369045/> Manuel-2008
+- <a id="ref-14"></a>[14] <http://www.cosic.esat.kuleuven.be/publications/article-2091.pdf> Mendel-2008
+- <a id="ref-15"></a>[15] <http://people.csail.mit.edu/yiqun/SHA1AttackProceedingVersion.pdf> Wang-2005b “Finding Collisions in the Full SHA-1”
+- <a id="ref-16"></a>[16] <http://eprint.iacr.org/2010/016> Guo-2010
+- <a id="ref-17"></a>[17] <http://radiogatun.noekeon.org/panama/PanamaAttack.pdf> Daemen-2007 “Producing Collisions for Panama, Instantaneously”
+- <a id="ref-18"></a>[18] <http://www.win.tue.nl/hashclash/rogue-ca/> Sotirov-2009
+- <a id="ref-19"></a>[19] <http://link.springer.com/chapter/10.1007%2F3-540-46766-1_11> Biham-1991
+- <a id="ref-20"></a>[20] <http://repo.zenk-security.com/Cryptographie%20.%20Algorithmes%20.%20Steganographie/Cryptanalysis%20of%20MD4.pdf> Dobbertin-1995
+- <a id="ref-21"></a>[21] <https://tools.ietf.org/html/rfc1115>
+- <a id="ref-22"></a>[22] <https://tools.ietf.org/html/rfc1186>
+- <a id="ref-23"></a>[23] <http://books.google.com/books?id=9Zi0__jNRvEC&lpg=PA1&ots=NJoLlc8QRz&dq=%E2%80%9CIntegrity%20Primitives%20for%20Secure%20Information%20Systems.%20Final%20Report%20of%20RACE%20Integrity%20Primitives%20Evaluation%20(RIPE-RACE%201040)%2C%E2%80%9D&lr&pg=PA71#v=onepage&q=ripemd&f=false>
+- <a id="ref-24"></a>[24] <https://tools.ietf.org/html/rfc1321>
+- <a id="ref-25"></a>[25] <http://labs.calyptix.com/files/haval-paper.pdf> Zheng-1992 “HAVAL – a one-way hashing algorithm with variable length of output”
+- <a id="ref-26"></a>[26] "FIPS PUB 180 / Federal Information Processing Standards Publication 180 / 1993 MAY 11"
+- <a id="ref-27"></a>[27] <http://link.springer.com/chapter/10.1007%2F11426639_3> Biham-2005 “Collisions of SHA-0 and Reduced SHA-1”
+- <a id="ref-28"></a>[28] "GOST 34.11-94, Information Technology Cryptographic Data Security Hashing Function (1994) (in Russian)"
+- <a id="ref-29"></a>[29] <http://itl.nist.gov/fipspubs/fip180-1.htm> SHA-1
+- <a id="ref-30"></a>[30] <http://link.springer.com/chapter/10.1007%2F3-540-60865-6_44> “RIPEMD-160: A Strengthened Version of RIPEMD”
+- <a id="ref-31"></a>[31] <http://link.springer.com/chapter/10.1007/3-540-60865-6_46> Anderson-1996 “Tiger: A fast new hash function”
+- <a id="ref-32"></a>[32] <http://cryptospecs.googlecode.com/svn/trunk/hash/specs/whirlpool.pdf> Barreto-2000 “The WHIRLPOOL Hashing Function”
+- <a id="ref-33"></a>[33] <http://link.springer.com/chapter/10.1007/3-540-69710-1_5> Daemen-1998 “Fast Hashing and Stream Encryption with Panama”
+- <a id="ref-34"></a>[34] <http://www.cosic.esat.kuleuven.be/publications/article-81.pdf> Rijmen-2002 “Producing Collisions for PANAMA”
+- <a id="ref-35"></a>[35] <http://radiogatun.noekeon.org/panama/> Daemen-2007 “Producing Collisions for Panama, Instantaneously”
+- <a id="ref-36"></a>[36] <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.106.4759> Wang-2005a “Cryptanalysis of the hash functions MD4 and RIPEMD”
+- <a id="ref-37"></a>[37] <http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf> “FIPS Publication 180-2”
+- <a id="ref-38"></a>[38] <http://radiogatun.noekeon.org/> Bertoni-2006 “The RadioGatún Hash Function Family”
+- <a id="ref-39"></a>[39] <http://www.skein-hash.info/sites/default/files/skein1.3.pdf> Ferguson-2008 “The Skein Hash Function Family”
+- <a id="ref-40"></a>[40] <https://131002.net/blake/> Aumasson-2008 “SHA-3 proposal BLAKE”
+- <a id="ref-41"></a>[41] <http://www.groestl.info/> Gauravaram-2008 “Grøstl – a SHA-3 candidate”
+- <a id="ref-42"></a>[42] <http://keccak.noekeon.org/> Bertoni-2008 “The Keccak sponge function family”
+- <a id="ref-43"></a>[43] <http://www3.ntu.edu.sg/home/wuhj/research/jh/> Wu-2008 “The Hash Function JH”
+- <a id="ref-44"></a>[44] <https://blake2.net/> Aumasson-2012 “BLAKE2: simpler, smaller, fast as MD5”
+- <a id="ref-45"></a>[45] <https://en.bitcoin.it/wiki/Difficulty>
+- <a id="ref-46"></a>[46] <http://bitcoin.sipa.be/>
+- <a id="ref-47"></a>[47] <http://www.keylength.com/en/3/>
+- <a id="ref-49"></a>[49] <http://www.ecrypt.eu.org/documents/D.SPA.20.pdf> Smart-2012 “ECRYPT II Yearly Report on Algorithms and Keysizes (2011-2012)”
+- <a id="ref-50"></a>[50] <http://www.mail-archive.com/cryptography@metzdowd.com/msg10800.html> Linus Torvalds email
+- <a id="ref-51"></a>[51] <http://oai.cwi.nl/oai/asset/21208/21208B.pdf> Stevens-2013 “New collision attacks on SHA-1 based on optimal joint local-collision analysis”
+- <a id="ref-52"></a>[52] <https://www.google.com/patents/US6829355> SHA-2 patent filed 2001
+- <a id="ref-53"></a>[53] <http://shattered.io/static/shattered.pdf> Stevens-2017 “The first collision for full SHA-1”
+- <a id="ref-54"></a>[54] <https://www.rfc-editor.org/rfc/rfc6194> Polk-2011 "RFC 6194: Security Considerations for the SHA-0 and SHA-1 Message-Digest Algorithms"
+- <a id="ref-55"></a>[55] Chabaud-Joux-1998 “Differential Collisions in SHA-0”, CRYPTO ’98, Springer LNCS 1462, doi:10.1007/BFb0055720
+
+## Metadata
+
+- **Author:** Zooko Wilcox-O'Hearn
+- **Contact:** zooko@z.cash
+- **Affiliation:** Zcash
+- **Revision:** 2017-02-24
+- **Date:** 2017-02-24
+- **License:** [Creative Commons Attribution 4.0 International License](http://creativecommons.org/licenses/by/4.0/deed.en_US)
+
+<!-- appendix: content commented out in the old rST, preserved verbatim; delete when reviewed -->
+```
+.. | Snefru-3 [3]_  |      |          |     | :r:`no`    | 2²⁹  | 2⁰  |       | :r:`no`    | 2⁵⁶  | 2⁰  |       |
+.. +----------------+      |          +-----+------------+------+-----+       +------+-----+------+-----+       +
+.. | Snefru-4 [3]_  |      |          |     | :r:`no`    | ≥2⁴⁵ | 2⁰  |       | :y:`maybe` | ≥2⁸⁸ | 2⁰  |       |
+.. +----------------+------+----------+-----+------------+------+-----+-------+------------+------+-----+-------+
+.. +----------------+      |          +-----+------------+------+-----+-------+------+-----+------+-----+-------+
+.. | HAVAL-256-4    |      |          |     | :r:`no`    | 2³⁶  | 2⁰  | [12]_ | :g:`yes`   | 2²⁵⁴ | 2⁶⁸ |       |
+.. +----------------+      |          +-----+------------+------+-----+-------+------+-----+------+-----+-------+
+.. | HAVAL-256-5    |      |          |     | :y:`maybe` | 2¹²³ | 2⁰  |       | :g:`yes`   | 2²⁵⁵ | 2⁶⁸ |       |
+.. XXX Hm, actually maybe 2⁸⁰ is now unsafe! https://twitter.com/josephbonneau/status/436362370785751040
+.. .. _Leurent-2008: http://www.di.ens.fr/~leurent/files/MD4_FSE08.pdf
+.. .. _SHA-3-Zoo: http://ehash.iaik.tugraz.at/wiki/The_SHA-3_Zoo
+```
+
+<!-- rendering machinery: everything below this line is not content -->
+<!-- Markdeep: --><script src="markdeep.min.js" charset="utf-8"></script><script src="viewer.js"></script>
