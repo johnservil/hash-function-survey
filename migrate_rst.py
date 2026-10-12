@@ -77,8 +77,9 @@ TIMELINE_CAPTION = ("*Figures 1 & 2: safety history of each hash function "
     "the color transitions from the design year onward (🟢 from design; "
     "🟡 theoretical attack or distrust; 🟠 brute force becoming feasible; "
     "🔴 practically broken). A cell containing only 🟢 means no transition "
-    "has ever occurred. The interactive view renders this as a "
-    "year-by-year timeline.*\n\n")
+    "has ever occurred. Opened in a browser as "
+    "`history-of-hash-function-attacks.md.html`, the page draws each "
+    "figure as a year-by-year coloured timeline.*\n\n")
 
 FIG0_HEADER = ["digital signature type", "today", "quantum computer",
                "asymmetric crypto breakthrough", "hash collisions",
@@ -88,8 +89,12 @@ FIG3_HEADER = ["hash", "year", "bits", "cpb",
                "preimg. safe?", "comp", "mem", "ref"]
 
 FOOTER = ('\n<!-- rendering machinery: everything below this line is not '
-    'content -->\n<!-- Markdeep: --><script src="markdeep.min.js" '
-    'charset="utf-8"></script><script src="viewer.js"></script>\n')
+    'content -->\n<!-- Markdeep: -->'
+    '<style class="fallback">body{visibility:hidden}</style>'
+    '<script src="viewer.js"></script>'
+    '<script src="markdeep.min.js" charset="utf-8"></script>'
+    '<script>window.alreadyProcessedMarkdeep||'
+    '(document.body.style.visibility="visible")</script>\n')
 
 EMOJI = {'r': '🔴', 'y': '🟡', 'g': '🟢', 'o': '🟠'}
 
@@ -130,7 +135,7 @@ def tl_cell(transitions):
     for color, year, ref in transitions:
         t = EMOJI[color] + ' ' + str(year)
         if ref:
-            t += ' ' + LB + LB + ref + RB + RB + '(#ref-' + ref + ')'
+            t += ' ' + LB + BSLASH + LB + ref + BSLASH + RB + RB + '(#ref-' + ref + ')'
         parts.append(t)
     return ' → '.join(parts)
 
@@ -232,7 +237,7 @@ def named_ref(m):
     mm = NOTE_XREF.fullmatch(name)
     if mm:
         nid = NOTE_IDS.get(mm.group(1), mm.group(1))
-        return LB + LB + mm.group(1) + RB + RB + '(#note-' + nid + ')'
+        return LB + BSLASH + LB + mm.group(1) + BSLASH + RB + RB + '(#note-' + nid + ')'
     if targets.get(name):
         return LB + name + RB + '(' + targets[name] + ')'
     warn('unresolved reference "' + name + '" left as plain text')
@@ -317,21 +322,21 @@ if leftovers:
 
 # 11. inline conversions
 sub_src(BT + LBe + '(.)' + RBe + BT + '_',
-        lambda m: LB + LB + m.group(1) + RB + RB + '(#note-'
+        lambda m: LB + BSLASH + LB + m.group(1) + BSLASH + RB + RB + '(#note-'
                   + NOTE_IDS.get(m.group(1), m.group(1)) + ')')
 sub_src(BT + r'(.+?)' + BT + r'_', named_ref)
 sub_src(r'(?<!\w)(?<!' + BT + r')(\w(?:\w|-|\+)*)_(?!\w)',
         lambda m: LB + m.group(1) + RB + '(' + targets[m.group(1)] + ')'
                   if targets.get(m.group(1)) else m.group(0))
 sub_src(LBe + r'(\d+)' + RBe + '_',
-        lambda m: LB + LB + m.group(1) + RB + RB
+        lambda m: LB + BSLASH + LB + m.group(1) + BSLASH + RB + RB
                   + '(#ref-' + m.group(1) + ')')
 sub_src(r':(.):' + BT + r'(.*?)' + BT,
         lambda m: (EMOJI.get(m.group(1), '') + ' ' + m.group(2)).strip())
 map_src(lambda t: t.replace(BSLASH + '?', '?'))
 map_src(lambda t: t.replace(
     'cycles per byte ' + LB + '*' + RB,
-    'cycles per byte ' + LB + LB + '*' + RB + RB + '(#note-star)'))
+    'cycles per byte ' + LB + BSLASH + LB + '*' + BSLASH + RB + RB + '(#note-star)'))
 
 # 12. small fixups: legend syntax (rename BEFORE blank-line insertion),
 #     star-list dedent, field list

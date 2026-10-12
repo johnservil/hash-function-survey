@@ -1,0 +1,5 @@
+ghtokenclassic.txt
+ghpasswd.txt
+*~
+*.orig
+__pycache__/
